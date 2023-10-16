@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const port = process.env.PORT || 5000;
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 require("dotenv").config();
 // middleware
@@ -50,13 +50,94 @@ async function run() {
     });
 
     app.get("/alltoys/:subcategory", async (req, res) => {
-      console.log(req.params.subcategory);
+      // console.log("category", req.params.subcategory);
 
       // match your query with db subcategory
       const query = { subcategory: req.params.subcategory };
-      const sub = await toycollection.find(query).toArray();
+      const sub = await toycollection.find(query).limit(3).toArray();
       // console.log(sub);
       res.send(sub);
+    });
+
+    // singtoy for toy details api
+    app.get("/singletoy/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+
+      const result = await toycollection.findOne(query);
+      // console.log(result);
+      res.send(result);
+    });
+
+    app.get("/searchbytoyname/:text", async (req, res) => {
+      const text = req.params.text;
+      // console.log(text);
+      const result = await toycollection
+        .find({ name: { $regex: text, $options: "i" } })
+        .toArray();
+      // console.log(result);
+      res.send(result);
+    });
+    app.get("/alltoy", async (req, res) => {
+      // console.log(req.query.email);
+      const { email, order } = req.query;
+      // console.log(req.query.email);
+      // console.log(req.query.order);
+
+      // let query = {};
+      // if (req.query?.email) {
+      //   query = { email: req.query.email };
+      // }
+
+      let query = {};
+      if (email) {
+        query.email = email;
+      }
+      const sortChoice = {};
+      if (order === "ascending") {
+        sortChoice.price = 1;
+      } else if (order === "descending") {
+        sortChoice.price = -1;
+      }
+      //previously sort({ price: 1 })
+      const result = await toycollection.find(query).sort(sortChoice).toArray();
+      // console.log(result);
+      res.send(result);
+    });
+
+    app.put("/update/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      // console.log("update", id);
+      const options = { upsert: true };
+      const updatetoy = req.body;
+      const updateDoc = {
+        $set: {
+          price: updatetoy.price,
+          // rating: updatetoy.rating,
+          quantity: updatetoy.quantity,
+          description: updatetoy.description,
+          // email: updatetoy.email,
+          // pictureURL: updatetoy.pictureURL,
+          // name: updatetoy.name,
+          // sellerName: updatetoy.sellerName,
+          // subcategory: updatetoy.subcategory
+        },
+      };
+
+      const result = await toycollection.updateOne(filter, updateDoc, options);
+
+      // console.log(result);
+      res.send(result);
+    });
+
+    // delete
+    app.delete("/singletoy/:id", async (req, res) => {
+      const id = req.params.id;
+      // console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const result = await toycollection.deleteOne(query);
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
